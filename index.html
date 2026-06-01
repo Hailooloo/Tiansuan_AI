@@ -139,6 +139,10 @@
               <div id="zhi-hour" class="zhi-cell">—</div>
             </div>
             <div class="pillar-row">
+              <div class="pillar-label">支十神</div>
+              <div id="ssz-year">—</div><div id="ssz-month">—</div><div id="ssz-day">—</div><div id="ssz-hour">—</div>
+            </div>
+            <div class="pillar-row">
               <div class="pillar-label">藏干</div>
               <div id="cg-year">—</div><div id="cg-month">—</div><div id="cg-day">—</div><div id="cg-hour">—</div>
             </div>
@@ -163,15 +167,23 @@
           </div>
         </div>
 
-        <!-- 流年/流月/流日 -->
+        <!-- 流年/流月/流日（日历式） -->
         <div class="card">
-          <div class="card-title">📅 流年 / 流月 / 流日</div>
+          <div class="card-title">📅 流年 / 流月 / 流日（点击日期查看解读）</div>
           <div class="liu-tabs">
             <button class="liu-tab active" data-liu="year">流年</button>
             <button class="liu-tab" data-liu="month">流月</button>
             <button class="liu-tab" data-liu="day">流日</button>
           </div>
-          <div id="liuContent" class="liu-content"></div>
+          <div id="calendarHeader" class="calendar-header"></div>
+          <div id="calendarBody" class="calendar-body"></div>
+          <div id="liuReading" class="liu-reading"></div>
+        </div>
+
+        <!-- 人生四大领域 -->
+        <div class="card">
+          <div class="card-title">🌈 一生大势 · 爱情 · 事业 · 健康 · 财富</div>
+          <div id="lifeAspects" class="life-aspects"></div>
         </div>
 
         <!-- 运势图 -->

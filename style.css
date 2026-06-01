@@ -850,6 +850,394 @@ select option {
   color: white;
 }
 
+/* ========== 日历组件（流年/流月/流日） ========== */
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0,0,0,0.25);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.cal-nav {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.cal-nav:hover {
+  background: var(--purple);
+  color: white;
+  border-color: var(--purple);
+}
+
+.cal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent-2);
+  letter-spacing: 1px;
+  text-align: center;
+  flex: 1;
+}
+
+.calendar-body {
+  margin-bottom: 16px;
+}
+
+/* 流年(10年一页) */
+.cal-grid-year {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+/* 流月（12月一页 4x3） */
+.cal-grid-month {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+/* 流日：周标题 + 日格 */
+.cal-week-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.cal-week {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 6px 0;
+  background: rgba(0,0,0,0.2);
+  border-radius: 4px;
+}
+
+.cal-day-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.cal-cell {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 6px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-height: 60px;
+}
+
+.cal-cell:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--purple-light);
+  transform: translateY(-2px);
+}
+
+.cal-cell.empty {
+  background: transparent;
+  border: 1px dashed rgba(255,255,255,0.05);
+  cursor: default;
+  pointer-events: none;
+  min-height: 60px;
+}
+
+.cal-cell.empty:hover {
+  background: transparent;
+  transform: none;
+}
+
+.cal-cell.today {
+  background: linear-gradient(135deg, rgba(212,175,55,0.18), rgba(138,43,226,0.18));
+  border-color: var(--gold);
+}
+
+.cal-cell.active {
+  background: linear-gradient(135deg, rgba(138,43,226,0.35), rgba(212,175,55,0.25));
+  border-color: var(--purple-light);
+  box-shadow: 0 4px 14px rgba(138,43,226,0.35);
+  transform: translateY(-2px);
+}
+
+.cal-cell-top {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.cal-cell-gz {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin: 2px 0;
+}
+
+.cal-cell-gz span + span { margin-left: 2px; }
+.cal-cell-gz.mini { font-size: 14px; }
+
+.cal-cell-ss {
+  font-size: 11px;
+  color: var(--accent-2);
+}
+
+.cal-cell-ss.mini { font-size: 10px; }
+
+.day-cell {
+  min-height: 64px;
+  padding: 4px 2px;
+}
+
+.day-cell .cal-cell-top {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ========== 运势解读面板 ========== */
+.liu-reading {
+  background: linear-gradient(135deg, rgba(212,175,55,0.06), rgba(138,43,226,0.08));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--gold);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  margin-top: 6px;
+}
+
+.liu-reading:empty { display: none; }
+
+.r-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.r-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent-2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.r-level {
+  display: inline-block;
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.r-level-good { background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid rgba(46,204,113,0.4); }
+.r-level-mid  { background: rgba(230,201,122,0.2); color: var(--accent-2); border: 1px solid rgba(230,201,122,0.4); }
+.r-level-bad  { background: rgba(231,76,60,0.2); color: #e74c3c; border: 1px solid rgba(231,76,60,0.4); }
+.r-level-normal { background: rgba(255,255,255,0.08); color: var(--text-secondary); border: 1px solid var(--border-light); }
+
+.r-score {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.r-score b {
+  font-size: 22px;
+  margin: 0 2px;
+}
+
+.r-score span {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.r-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.r-tag {
+  font-size: 11px;
+  padding: 2px 9px;
+  border-radius: 10px;
+  background: rgba(168,85,247,0.15);
+  color: #c9a4f5;
+  border: 1px solid rgba(168,85,247,0.3);
+}
+
+.r-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+.r-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.r-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.r-section h5 {
+  font-size: 13px;
+  color: var(--accent-2);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.r-section p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+}
+
+/* ========== 人生四大领域卡片 ========== */
+.life-aspects {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.aspect-card {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--c);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  transition: all 0.3s;
+}
+
+.aspect-card:hover {
+  background: rgba(0,0,0,0.35);
+  border-color: var(--c);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+
+.aspect-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.aspect-head h4 {
+  font-size: 15px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.aspect-score {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.aspect-score b {
+  font-size: 22px;
+  font-weight: 700;
+  margin-right: 1px;
+}
+
+.aspect-bar {
+  width: 100%;
+  height: 5px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.aspect-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.aspect-body p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 4px;
+}
+
+.aspect-body p:last-child { margin-bottom: 0; }
+
+/* ========== 手机端日历&解读&四大领域 ========== */
+@media (max-width: 768px) {
+  .calendar-header {
+    padding: 6px 8px;
+    gap: 6px;
+  }
+  .cal-nav { padding: 5px 8px; font-size: 12px; }
+  .cal-title { font-size: 13px; }
+
+  .cal-grid-year { grid-template-columns: repeat(2, 1fr); }
+  .cal-grid-month { grid-template-columns: repeat(3, 1fr); }
+
+  .cal-cell { padding: 6px 4px; min-height: 52px; }
+  .cal-cell-top { font-size: 11px; }
+  .cal-cell-gz { font-size: 15px; }
+  .cal-cell-gz.mini { font-size: 12px; }
+  .cal-cell-ss { font-size: 10px; }
+
+  .day-cell { min-height: 50px; padding: 3px 1px; }
+  .day-cell .cal-cell-top { font-size: 12px; }
+
+  .cal-week { font-size: 11px; padding: 4px 0; }
+
+  .liu-reading { padding: 12px 14px; }
+  .r-title { font-size: 14px; }
+  .r-score b { font-size: 18px; }
+  .r-section p { font-size: 12px; }
+
+  .life-aspects { grid-template-columns: 1fr; gap: 10px; }
+  .aspect-card { padding: 14px; }
+  .aspect-head h4 { font-size: 14px; }
+  .aspect-score b { font-size: 18px; }
+  .aspect-body p { font-size: 12px; }
+
+  /* 支十神行字号缩小 */
+  .pillar-row > div { font-size: 11px; }
+}
+
+@media (max-width: 380px) {
+  .cal-grid-year { grid-template-columns: repeat(2, 1fr); }
+  .cal-grid-month { grid-template-columns: repeat(2, 1fr); }
+  .day-cell { min-height: 44px; }
+  .day-cell .cal-cell-top { font-size: 11px; }
+  .cal-cell-gz.mini { font-size: 11px; }
+}
+
 /* ========== 响应式 ========== */
 @media (max-width: 1024px) {
   .app-main {
@@ -1022,4 +1410,3 @@ select option {
 
 /* 操作按钮内的删除态 */
 .icon-btn[data-act="del"]:hover { background: #c1392b; color: #fff; }
-```

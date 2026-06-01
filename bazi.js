@@ -347,15 +347,19 @@ function paipan(input) {
   const pillars = {
     year:  { gan: yearGZ.gan,  zhi: yearGZ.zhi,  gz: yearGZ.gz,
              cangGan: ZHI_CANG_GAN[yearGZ.zhi], shiShenGan: getShiShen(dayGan, yearGZ.gan),
+             shiShenZhi: getShiShen(dayGan, ZHI_CANG_GAN[yearGZ.zhi][0]),
              nayin: NA_YIN[jiaziIndex(yearGZ.gan, yearGZ.zhi)] },
     month: { gan: monthGZ.gan, zhi: monthGZ.zhi, gz: monthGZ.gz,
              cangGan: ZHI_CANG_GAN[monthGZ.zhi], shiShenGan: getShiShen(dayGan, monthGZ.gan),
+             shiShenZhi: getShiShen(dayGan, ZHI_CANG_GAN[monthGZ.zhi][0]),
              nayin: NA_YIN[jiaziIndex(monthGZ.gan, monthGZ.zhi)] },
     day:   { gan: dayGZ.gan,   zhi: dayGZ.zhi,   gz: dayGZ.gz,
              cangGan: ZHI_CANG_GAN[dayGZ.zhi], shiShenGan: '日主',
+             shiShenZhi: getShiShen(dayGan, ZHI_CANG_GAN[dayGZ.zhi][0]),
              nayin: NA_YIN[jiaziIndex(dayGZ.gan, dayGZ.zhi)] },
     hour:  { gan: hourGZ.gan,  zhi: hourGZ.zhi,  gz: hourGZ.gz,
              cangGan: ZHI_CANG_GAN[hourGZ.zhi], shiShenGan: getShiShen(dayGan, hourGZ.gan),
+             shiShenZhi: getShiShen(dayGan, ZHI_CANG_GAN[hourGZ.zhi][0]),
              nayin: NA_YIN[jiaziIndex(hourGZ.gan, hourGZ.zhi)] }
   };
 
@@ -565,8 +569,250 @@ function buildComment(result) {
   ];
 }
 
+// ========== 十神运势短文映射 ==========
+const SHISHEN_LUCK_MAP = {
+  '比肩': { score: 70, key: '合作 / 自我', desc: '比肩临身，宜与友朋合作共事，心境坚定，凡事亲力亲为方有所成。' },
+  '劫财': { score: 55, key: '破财 / 竞争', desc: '劫财当令，需防口舌是非与意外破财，理财投资宜守不宜攻。' },
+  '食神': { score: 85, key: '才艺 / 享受', desc: '食神生发，文思泉涌、口福通达，宜创作、社交与子女之事。' },
+  '伤官': { score: 65, key: '才华 / 张扬', desc: '伤官外露，才华横溢但易招小人，宜内敛低调，慎言慎行。' },
+  '偏财': { score: 80, key: '机遇 / 偏门', desc: '偏财得利，机会随处可现，宜把握短期投资与人脉拓展之机。' },
+  '正财': { score: 82, key: '勤业 / 持家', desc: '正财稳进，宜踏实工作、稳健理财，婚姻家庭之事多有进展。' },
+  '七杀': { score: 50, key: '压力 / 决断', desc: '七杀攻身，事多波折挑战，宜冷静应对，转化为奋进动力。' },
+  '正官': { score: 78, key: '名誉 / 升迁', desc: '正官护身，工作稳定可期升迁，宜守规矩、重信誉。' },
+  '偏印': { score: 60, key: '思考 / 孤独', desc: '偏印生身，思维敏锐但易钻牛角尖，宜静心修学、独立思考。' },
+  '正印': { score: 80, key: '贵人 / 学业', desc: '正印滋生，贵人相助、文书顺利，宜进修、签约、置业。' }
+};
+
+function _luckByShiShen(ss) {
+  return SHISHEN_LUCK_MAP[ss] || { score: 65, key: '平稳', desc: '运势平稳，按部就班即可。' };
+}
+
+// ========== 流年解读 ==========
+function buildLiuYearReading(dayGan, liuyearItem) {
+  const ss = liuyearItem.shiShen;
+  const info = _luckByShiShen(ss);
+  const wxGan = GAN_WUXING[liuyearItem.gan];
+  const wxZhi = ZHI_WUXING[liuyearItem.zhi];
+  const zhiSS = getShiShen(dayGan, ZHI_CANG_GAN[liuyearItem.zhi][0]);
+  return {
+    title: `${liuyearItem.year}年 · ${liuyearItem.gz}（${ss}年）`,
+    score: info.score,
+    tags: [`天干${ss}`, `地支${zhiSS}`, info.key, `纳音${liuyearItem.nayin}`],
+    sections: [
+      { name: '总论', text: `${liuyearItem.year}年为${liuyearItem.gz}年，对您而言天干为「${ss}」，地支本气为「${zhiSS}」。${info.desc}` },
+      { name: '事业', text: ['正官','正印','食神'].includes(ss) ? '事业有贵人提携，宜主动争取机会，可有阶段性突破。' : ['七杀','伤官','劫财'].includes(ss) ? '工作压力较大，需谨慎处理人际与决策，避免冲动跳槽。' : '事业稳中有进，按既定目标推进即可。' },
+      { name: '财运', text: ['正财','偏财','食神'].includes(ss) ? '财源较旺，正偏财皆可期，但需把握节奏，留足余粮。' : ['劫财','七杀'].includes(ss) ? '破财信号明显，慎防投资失利与他人借贷，稳为上策。' : '财运平和，以稳守为主。' },
+      { name: '感情', text: ['正财','正官','食神'].includes(ss) ? '感情运佳，单身者易遇良缘，已婚者家庭和谐。' : ['七杀','伤官','劫财'].includes(ss) ? '感情易生波折，需多沟通、少指责，避免冷战。' : '感情如常，平淡中见真情。' },
+      { name: '健康', text: `${wxGan}${wxZhi}之气当令，注意${_healthByWuxing(wxGan)}相关问题，作息规律为要。` }
+    ]
+  };
+}
+
+// ========== 流月解读 ==========
+function buildLiuMonthReading(dayGan, liuyueItem, year) {
+  const ss = liuyueItem.shiShen;
+  const info = _luckByShiShen(ss);
+  const zhiSS = getShiShen(dayGan, ZHI_CANG_GAN[liuyueItem.zhi][0]);
+  return {
+    title: `${year}年${liuyueItem.monthName} · ${liuyueItem.gz}`,
+    score: info.score,
+    tags: [`天干${ss}`, `地支${zhiSS}`, info.key],
+    sections: [
+      { name: '本月总论', text: `${liuyueItem.monthName}为${liuyueItem.gz}月，干支带「${ss}/${zhiSS}」之象。${info.desc}` },
+      { name: '宜', text: _liuYi(ss) },
+      { name: '忌', text: _liuJi(ss) }
+    ]
+  };
+}
+
+// ========== 流日解读 ==========
+function buildLiuDayReading(dayGan, liuriItem) {
+  const ss = liuriItem.shiShen;
+  const info = _luckByShiShen(ss);
+  const zhiSS = getShiShen(dayGan, ZHI_CANG_GAN[liuriItem.zhi][0]);
+  // 简易吉凶等级
+  let level = '平';
+  if (info.score >= 80) level = '吉';
+  else if (info.score >= 70) level = '小吉';
+  else if (info.score < 60) level = '需慎';
+  return {
+    title: `${liuriItem.date} · ${liuriItem.gz}日`,
+    score: info.score,
+    level,
+    tags: [`天干${ss}`, `地支${zhiSS}`, info.key],
+    sections: [
+      { name: '今日总论', text: `今日${liuriItem.gz}，对您日主${dayGan}而言为「${ss}」之日。${info.desc}` },
+      { name: '宜', text: _liuYi(ss) },
+      { name: '忌', text: _liuJi(ss) },
+      { name: '幸运提示', text: `幸运色：${_luckColor(GAN_WUXING[liuriItem.gan])}；适合方位：${_luckDirection(liuriItem.zhi)}。` }
+    ]
+  };
+}
+
+function _liuYi(ss) {
+  const map = {
+    '比肩': '团队合作、运动健身、与好友相聚',
+    '劫财': '低调行事、整理财物、量入为出',
+    '食神': '美食享受、艺术创作、亲子互动',
+    '伤官': '展示才华、学习新事物、记录灵感',
+    '偏财': '社交拓展、短期投资、接洽新客户',
+    '正财': '正职工作、签约合同、置业理财',
+    '七杀': '健身锻炼、攻坚克难、果断决策',
+    '正官': '汇报工作、面试求职、办理证件',
+    '偏印': '学习钻研、独处思考、阅读冥想',
+    '正印': '签合同、求学进修、拜访长辈贵人'
+  };
+  return map[ss] || '平心静气，顺其自然';
+}
+
+function _liuJi(ss) {
+  const map = {
+    '比肩': '独自决策大事、与人争执',
+    '劫财': '借贷投资、合伙生意、轻信他人',
+    '食神': '过度饮食、放纵享乐',
+    '伤官': '口出狂言、与上司争辩',
+    '偏财': '贪小便宜、参与赌博',
+    '正财': '为情所困、忽略家人',
+    '七杀': '冲动冒险、独行夜路',
+    '正官': '违规违纪、应酬过度',
+    '偏印': '钻牛角尖、自我封闭',
+    '正印': '过度依赖、签订不利合约'
+  };
+  return map[ss] || '冲动行事';
+}
+
+function _luckColor(wx) {
+  return { '木': '青/绿', '火': '红/紫', '土': '黄/棕', '金': '白/银', '水': '黑/蓝' }[wx] || '金色';
+}
+
+function _luckDirection(zhi) {
+  const m = {
+    '子': '正北', '丑': '东北偏北', '寅': '东北偏东', '卯': '正东',
+    '辰': '东南偏东', '巳': '东南偏南', '午': '正南', '未': '西南偏南',
+    '申': '西南偏西', '酉': '正西', '戌': '西北偏西', '亥': '西北偏北'
+  };
+  return m[zhi] || '正南';
+}
+
+function _healthByWuxing(wx) {
+  return { '木': '肝胆、筋骨、情绪', '火': '心脏、血压、视力', '土': '脾胃、消化、湿气', '金': '肺部、呼吸道、皮肤', '水': '肾脏、泌尿、腰膝' }[wx] || '整体调养';
+}
+
+// ========== 人生四大领域解读 ==========
+function buildLifeAspects(result) {
+  const dayGan = result.dayGan;
+  const pillars = result.pillars;
+  const wuxing = result.wuxing;
+  // 统计十神出现次数
+  const ssCount = {};
+  ['year','month','hour'].forEach(k => {
+    const s1 = pillars[k].shiShenGan;
+    if (s1 && s1 !== '日主') ssCount[s1] = (ssCount[s1] || 0) + 1;
+    const s2 = pillars[k].shiShenZhi;
+    if (s2 && s2 !== '日主') ssCount[s2] = (ssCount[s2] || 0) + 0.6;
+  });
+  ssCount[pillars.day.shiShenZhi] = (ssCount[pillars.day.shiShenZhi] || 0) + 0.6;
+
+  const has = (s) => (ssCount[s] || 0) > 0;
+  const strong = (s) => (ssCount[s] || 0) >= 1.6;
+
+  // 爱情：男看正财（妻），女看正官（夫）；通用看日支与配偶宫
+  const isMale = result.input.gender === 'male';
+  const spouseSS = isMale ? '正财' : '正官';
+  const oppoSS = isMale ? '偏财' : '七杀';
+  let loveScore = 70;
+  let loveText = [];
+  if (strong(spouseSS)) { loveScore += 12; loveText.push(`命中${spouseSS}得力，配偶贤良、感情忠诚，姻缘较为顺遂。`); }
+  else if (has(spouseSS)) { loveScore += 6; loveText.push(`命带${spouseSS}，姻缘有期，需在合适大运中把握。`); }
+  else { loveScore -= 5; loveText.push(`正缘星不显，感情上需主动经营，缘分多在外出与社交中遇见。`); }
+  if (strong(oppoSS)) { loveScore -= 6; loveText.push(`命中${oppoSS}偏旺，感情选择多但易生纠葛，需慎择良伴。`); }
+  if (has('伤官') && !isMale) { loveScore -= 4; loveText.push('女命见伤官，个性独立强势，宜寻包容之伴侣。'); }
+  if (has('比劫') || has('劫财')) { loveText.push('命见比劫，需防第三者介入，婚后宜常沟通。'); }
+  loveText.push(`日支为「${pillars.day.zhi}」，配偶宫之象主${_spouseHint(pillars.day.zhi)}。`);
+
+  // 事业
+  let careerScore = 70;
+  let careerText = [];
+  if (strong('正官')) { careerScore += 12; careerText.push('正官有力，宜从事公职、管理、法律等正统行业，仕途有望。'); }
+  if (strong('七杀')) { careerScore += 8; careerText.push('七杀显赫，适合军警、外科、销售、创业等竞争性行业，能于压力中脱颖而出。'); }
+  if (strong('食神') || strong('伤官')) { careerScore += 6; careerText.push('食伤吐秀，文艺创作、传媒教育、技术研发为佳。'); }
+  if (strong('正印') || strong('偏印')) { careerScore += 5; careerText.push('印星为用，宜学术研究、文化教育、宗教咨询等领域。'); }
+  if (!has('正官') && !has('七杀')) { careerText.push('官杀不显，宜自主创业或自由职业，受人管束反而不利。'); }
+  careerText.push(`月柱「${pillars.month.gz}」为事业宫，主${_careerHint(pillars.month.shiShenGan)}。`);
+
+  // 健康
+  const wxArr = Object.entries(wuxing).sort((a, b) => b[1] - a[1]);
+  const strongest = wxArr[0][0], weakest = wxArr[wxArr.length - 1][0];
+  const strongestVal = wxArr[0][1], weakestVal = wxArr[wxArr.length - 1][1];
+  let healthScore = 75;
+  if (strongestVal - weakestVal >= 4) healthScore -= 10;
+  else if (strongestVal - weakestVal <= 2) healthScore += 5;
+  const healthText = [
+    `命局五行以「${strongest}」最旺、「${weakest}」最弱，整体${strongestVal - weakestVal >= 4 ? '偏枯' : '较为均衡'}。`,
+    `「${strongest}」过旺需注意${_healthByWuxing(strongest)}方面问题；`,
+    `「${weakest}」薄弱建议补益${_healthByWuxing(weakest)}相关脏腑。`,
+    '日常宜规律作息，适度运动，调和情志。'
+  ];
+
+  // 财富
+  let wealthScore = 70;
+  let wealthText = [];
+  if (strong('正财') && strong('偏财')) { wealthScore += 14; wealthText.push('正偏财俱旺，财源广阔，正业偏业皆可得财。'); }
+  else if (strong('正财')) { wealthScore += 10; wealthText.push('正财得用，宜稳健积累，工资性收入与不动产为主。'); }
+  else if (strong('偏财')) { wealthScore += 8; wealthText.push('偏财显著，机遇财、投资财较旺，宜把握短线机会。'); }
+  if (strong('食神') || strong('伤官')) { wealthScore += 5; wealthText.push('食伤生财，凭借才华与口才生财之路畅通。'); }
+  if (strong('劫财') || strong('比肩')) { wealthScore -= 6; wealthText.push('比劫旺则破财，理财需谨慎，不宜合伙与借贷。'); }
+  if (!has('正财') && !has('偏财')) { wealthText.push('命中财星不显，财富多由智慧与服务换取，宜专注一技之长。'); }
+  wealthText.push(`时柱「${pillars.hour.gz}」主晚年财福，${pillars.hour.shiShenGan === '正财' || pillars.hour.shiShenGan === '偏财' ? '晚年财禄丰厚。' : '晚年宜未雨绸缪。'}`);
+
+  const clamp = v => Math.max(40, Math.min(95, Math.round(v)));
+
+  return {
+    love:    { score: clamp(loveScore),    title: '💕 爱情姻缘', texts: loveText },
+    career:  { score: clamp(careerScore),  title: '💼 事业成就', texts: careerText },
+    health:  { score: clamp(healthScore),  title: '🌿 健康平安', texts: healthText },
+    wealth:  { score: clamp(wealthScore),  title: '💰 财富积累', texts: wealthText }
+  };
+}
+
+function _spouseHint(zhi) {
+  const m = {
+    '子': '配偶聪慧灵动、富有智慧',
+    '丑': '配偶踏实稳重、勤俭持家',
+    '寅': '配偶正直进取、富有担当',
+    '卯': '配偶温柔体贴、富有艺术气质',
+    '辰': '配偶包容大度、能助事业',
+    '巳': '配偶聪明俊美、口才出众',
+    '午': '配偶热情开朗、行动力强',
+    '未': '配偶善良温和、注重家庭',
+    '申': '配偶机智干练、独立自强',
+    '酉': '配偶外貌出众、注重品位',
+    '戌': '配偶忠诚可靠、重情重义',
+    '亥': '配偶心思细腻、富有同情心'
+  };
+  return m[zhi] || '配偶相伴，相敬如宾';
+}
+
+function _careerHint(ss) {
+  const m = {
+    '正官': '正业稳定，仕途有望',
+    '七杀': '事业富挑战，能在竞争中崛起',
+    '正财': '工作勤勉，财富稳进',
+    '偏财': '事业灵活多变，机遇频生',
+    '正印': '依靠学识与名誉立业',
+    '偏印': '专精一门技艺，自成体系',
+    '食神': '凭借才华与人脉发展',
+    '伤官': '才华横溢，宜创新行业',
+    '比肩': '独立打拼，事业靠己',
+    '劫财': '事业多竞争，宜防小人'
+  };
+  return m[ss] || '事业稳健发展';
+}
+
 // 暴露到全局
 window.BAZI = {
   TIAN_GAN, DI_ZHI, GAN_WUXING, ZHI_WUXING, ZHI_CANG_GAN, NA_YIN,
-  paipan, buildComment, getShiShen, lunarToSolar
+  paipan, buildComment, getShiShen, lunarToSolar,
+  buildLiuYearReading, buildLiuMonthReading, buildLiuDayReading, buildLifeAspects,
+  calcLiuRi
 };

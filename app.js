@@ -29,6 +29,12 @@
     activeId: loadActiveId(),
     editingId: null,
     currentLiu: 'year',
+    // 日历浏览状态
+    liuYearDecadeStart: 0, // 流年页：起始年（10年一页）
+    liuMonthYear: 0,       // 流月页：所看的年份
+    liuDayYear: 0,         // 流日页：所看的年份
+    liuDayMonth: 0,        // 流日页：所看的月份
+    selectedKey: '',       // 当前选中的格子key
     wuxingChart: null,
     luckChart: null,
     lastResult: null
@@ -341,6 +347,7 @@
     ['year', 'month', 'day', 'hour'].forEach(k => {
       const pi = result.pillars[k];
       $('#ss-' + k).textContent = pi.shiShenGan;
+      $('#ssz-' + k).textContent = pi.shiShenZhi || '—';
       const ganEl = $('#gan-' + k);
       const zhiEl = $('#zhi-' + k);
       ganEl.textContent = pi.gan;
@@ -359,10 +366,19 @@
     // 大运
     renderDayun(result);
 
-    // 流年/月/日
+    // 流年/月/日（日历组件）
     state.currentLiu = 'year';
     $$('.liu-tab').forEach(t => t.classList.toggle('active', t.dataset.liu === 'year'));
-    renderLiu(result, 'year');
+    const nowY = new Date().getFullYear();
+    state.liuYearDecadeStart = Math.floor(nowY / 10) * 10;
+    state.liuMonthYear = nowY;
+    state.liuDayYear = nowY;
+    state.liuDayMonth = new Date().getMonth() + 1;
+    state.selectedKey = '';
+    renderCalendar();
+
+    // 人生四大领域
+    renderLifeAspects(result);
 
     // 运势图
     renderLuckChart(result.luckCurve, result.dayun);
@@ -420,43 +436,290 @@
     box.innerHTML = `<div class="dayun-info">起运：${result.dayun.startAge}岁 · ${dir}</div>` + items;
   }
 
-  /* ----------- 流年/流月/流日渲染 ----------- */
-  function renderLiu(result, type) {
-    const box = $('#liuContent');
-    let html = '';
-    if (type === 'year') {
-      html = result.liunian.map(l => `
-        <div class="liu-item">
-          <div class="label">${l.year}年</div>
-          <div class="gz">
-            <span class="${wxCls(window.BAZI.GAN_WUXING[l.gan])}">${l.gan}</span><span class="${wxCls(window.BAZI.ZHI_WUXING[l.zhi])}">${l.zhi}</span>
+  /* ----------- 流年/流月/流日日历 ----------- */
+  function renderCalendar() {
+    const result = state.lastResult;
+    if (!result) return;
+    const dayGan = result.dayGan;
+    const header = $('#calendarHeader');
+    const body = $('#calendarBody');
+    const reading = $('#liuReading');
+
+    if (state.currentLiu === 'year') {
+      // 流年：10年一页
+      const start = state.liuYearDecadeStart;
+      const end = start + 9;
+      header.innerHTML = `
+        <button class="cal-nav" data-cal="prev-year">‹ 上10年</button>
+        <div class="cal-title">流年 · ${start} ~ ${end}</div>
+        <button class="cal-nav" data-cal="next-year">下10年 ›</button>
+      `;
+      const items = [];
+      for (let y = start; y <= end; y++) {
+        const list = window.BAZI.calcLiuRi ? null : null;
+        // 直接用流年生成
+        const lyArr = (function () {
+          const ar = [];
+          const gan = window.BAZI.TIAN_GAN[((y - 4) % 10 + 10) % 10];
+          const zhi = window.BAZI.DI_ZHI[((y - 4) % 12 + 12) % 12];
+          ar.push({
+            year: y, gan, zhi, gz: gan + zhi,
+            shiShen: window.BAZI.getShiShen(dayGan, gan),
+            nayin: window.BAZI.NA_YIN[(function () {
+              for (let i = 0; i < 60; i++) if (i % 10 === window.BAZI.TIAN_GAN.indexOf(gan) && i % 12 === window.BAZI.DI_ZHI.indexOf(zhi)) return i;
+              return 0;
+            })()]
+          });
+          return ar[0];
+        })();
+        items.push(lyArr);
+      }
+      const nowY = new Date().getFullYear();
+      body.className = 'calendar-body cal-grid-year';
+      body.innerHTML = items.map(it => {
+        const key = 'y_' + it.year;
+        const isToday = it.year === nowY;
+        const isActive = state.selectedKey === key;
+        return `
+          <div class="cal-cell ${isToday ? 'today' : ''} ${isActive ? 'active' : ''}" data-key="${key}" data-year="${it.year}">
+            <div class="cal-cell-top">${it.year}</div>
+            <div class="cal-cell-gz">
+              <span class="${wxCls(window.BAZI.GAN_WUXING[it.gan])}">${it.gan}</span><span class="${wxCls(window.BAZI.ZHI_WUXING[it.zhi])}">${it.zhi}</span>
+            </div>
+            <div class="cal-cell-ss">${it.shiShen}</div>
           </div>
-          <div class="ss">${l.shiShen}</div>
-          <div class="label">${l.nayin}</div>
-        </div>
-      `).join('');
-    } else if (type === 'month') {
-      html = result.liuyue.map(l => `
-        <div class="liu-item">
-          <div class="label">${l.monthName}</div>
-          <div class="gz">
-            <span class="${wxCls(window.BAZI.GAN_WUXING[l.gan])}">${l.gan}</span><span class="${wxCls(window.BAZI.ZHI_WUXING[l.zhi])}">${l.zhi}</span>
+        `;
+      }).join('');
+
+      // 默认选中今年（如果在范围内）
+      if (!state.selectedKey || !state.selectedKey.startsWith('y_')) {
+        const defaultY = (nowY >= start && nowY <= end) ? nowY : start;
+        state.selectedKey = 'y_' + defaultY;
+      }
+      bindCalendarEvents();
+      renderLiuReading();
+
+    } else if (state.currentLiu === 'month') {
+      // 流月：选定年份的12月
+      const y = state.liuMonthYear;
+      header.innerHTML = `
+        <button class="cal-nav" data-cal="prev-year">‹ 上一年</button>
+        <div class="cal-title">流月 · ${y}年</div>
+        <button class="cal-nav" data-cal="next-year">下一年 ›</button>
+      `;
+      // 生成该年的流月
+      const yearGan = window.BAZI.TIAN_GAN[((y - 4) % 10 + 10) % 10];
+      const startGanMap = { '甲':'丙','己':'丙','乙':'戊','庚':'戊','丙':'庚','辛':'庚','丁':'壬','壬':'壬','戊':'甲','癸':'甲' };
+      const startGan = startGanMap[yearGan];
+      const startIdx = window.BAZI.TIAN_GAN.indexOf(startGan);
+      const monthZhi = ['寅','卯','辰','巳','午','未','申','酉','戌','亥','子','丑'];
+      const items = [];
+      for (let i = 0; i < 12; i++) {
+        const gan = window.BAZI.TIAN_GAN[(startIdx + i) % 10];
+        const zhi = monthZhi[i];
+        // 大致对应公历月份：寅≈2月、卯≈3月...丑≈1月
+        const solarMonth = ((i + 1) % 12) + 1;
+        items.push({
+          idx: i,
+          monthName: ['正','二','三','四','五','六','七','八','九','十','冬','腊'][i] + '月',
+          solarMonth,
+          gan, zhi, gz: gan + zhi,
+          shiShen: window.BAZI.getShiShen(dayGan, gan)
+        });
+      }
+      const now = new Date();
+      body.className = 'calendar-body cal-grid-month';
+      body.innerHTML = items.map(it => {
+        const key = 'm_' + y + '_' + it.idx;
+        const isToday = (y === now.getFullYear() && it.solarMonth === (now.getMonth() + 1));
+        const isActive = state.selectedKey === key;
+        return `
+          <div class="cal-cell ${isToday ? 'today' : ''} ${isActive ? 'active' : ''}" data-key="${key}" data-midx="${it.idx}" data-year="${y}">
+            <div class="cal-cell-top">${it.monthName}（约公历${it.solarMonth}月）</div>
+            <div class="cal-cell-gz">
+              <span class="${wxCls(window.BAZI.GAN_WUXING[it.gan])}">${it.gan}</span><span class="${wxCls(window.BAZI.ZHI_WUXING[it.zhi])}">${it.zhi}</span>
+            </div>
+            <div class="cal-cell-ss">${it.shiShen}</div>
           </div>
-          <div class="ss">${l.shiShen}</div>
-        </div>
-      `).join('');
-    } else if (type === 'day') {
-      html = result.liuri.map(l => `
-        <div class="liu-item">
-          <div class="label">${l.day}日</div>
-          <div class="gz">
-            <span class="${wxCls(window.BAZI.GAN_WUXING[l.gan])}">${l.gan}</span><span class="${wxCls(window.BAZI.ZHI_WUXING[l.zhi])}">${l.zhi}</span>
+        `;
+      }).join('');
+
+      if (!state.selectedKey || !state.selectedKey.startsWith('m_')) {
+        const cur = (y === now.getFullYear()) ? Math.max(0, now.getMonth() + 1 - 2) : 0;
+        state.selectedKey = 'm_' + y + '_' + cur;
+      }
+      bindCalendarEvents();
+      renderLiuReading();
+
+    } else {
+      // 流日：选定年月的公历日历
+      const y = state.liuDayYear;
+      const m = state.liuDayMonth;
+      header.innerHTML = `
+        <button class="cal-nav" data-cal="prev-month">‹ 上月</button>
+        <div class="cal-title">流日 · ${y}年${m}月</div>
+        <button class="cal-nav" data-cal="next-month">下月 ›</button>
+      `;
+      const liuri = window.BAZI.calcLiuRi(dayGan, y, m);
+      const firstDay = new Date(y, m - 1, 1).getDay(); // 0=Sun
+      const totalDays = liuri.length;
+      // 周标题
+      const weekTitle = ['日','一','二','三','四','五','六'].map(w => `<div class="cal-week">${w}</div>`).join('');
+      const cells = [];
+      for (let i = 0; i < firstDay; i++) cells.push(`<div class="cal-cell empty"></div>`);
+      const today = new Date();
+      const isCurMonth = (y === today.getFullYear() && m === (today.getMonth() + 1));
+      liuri.forEach(it => {
+        const key = 'd_' + it.date;
+        const isToday = isCurMonth && it.day === today.getDate();
+        const isActive = state.selectedKey === key;
+        cells.push(`
+          <div class="cal-cell day-cell ${isToday ? 'today' : ''} ${isActive ? 'active' : ''}" data-key="${key}" data-date="${it.date}">
+            <div class="cal-cell-top">${it.day}</div>
+            <div class="cal-cell-gz mini">
+              <span class="${wxCls(window.BAZI.GAN_WUXING[it.gan])}">${it.gan}</span><span class="${wxCls(window.BAZI.ZHI_WUXING[it.zhi])}">${it.zhi}</span>
+            </div>
+            <div class="cal-cell-ss mini">${it.shiShen}</div>
           </div>
-          <div class="ss">${l.shiShen}</div>
-        </div>
-      `).join('');
+        `);
+      });
+      body.className = 'calendar-body cal-grid-day';
+      body.innerHTML = `<div class="cal-week-row">${weekTitle}</div><div class="cal-day-grid">${cells.join('')}</div>`;
+
+      if (!state.selectedKey || !state.selectedKey.startsWith('d_') || !state.selectedKey.startsWith('d_' + y + '-' + String(m).padStart(2,'0'))) {
+        const defD = isCurMonth ? today.getDate() : 1;
+        const dStr = `${y}-${String(m).padStart(2,'0')}-${String(defD).padStart(2,'0')}`;
+        state.selectedKey = 'd_' + dStr;
+      }
+      bindCalendarEvents();
+      renderLiuReading();
     }
-    box.innerHTML = html;
+  }
+
+  function bindCalendarEvents() {
+    const header = $('#calendarHeader');
+    const body = $('#calendarBody');
+    header.querySelectorAll('.cal-nav').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const act = btn.dataset.cal;
+        if (state.currentLiu === 'year') {
+          if (act === 'prev-year') state.liuYearDecadeStart -= 10;
+          else state.liuYearDecadeStart += 10;
+        } else if (state.currentLiu === 'month') {
+          if (act === 'prev-year') state.liuMonthYear -= 1;
+          else state.liuMonthYear += 1;
+        } else {
+          if (act === 'prev-month') {
+            state.liuDayMonth -= 1;
+            if (state.liuDayMonth < 1) { state.liuDayMonth = 12; state.liuDayYear -= 1; }
+          } else {
+            state.liuDayMonth += 1;
+            if (state.liuDayMonth > 12) { state.liuDayMonth = 1; state.liuDayYear += 1; }
+          }
+        }
+        state.selectedKey = '';
+        renderCalendar();
+      });
+    });
+
+    body.querySelectorAll('.cal-cell[data-key]').forEach(cell => {
+      cell.addEventListener('click', () => {
+        const key = cell.getAttribute('data-key');
+        if (!key) return;
+        state.selectedKey = key;
+        body.querySelectorAll('.cal-cell.active').forEach(c => c.classList.remove('active'));
+        cell.classList.add('active');
+        renderLiuReading();
+      });
+    });
+  }
+
+  function renderLiuReading() {
+    const reading = $('#liuReading');
+    const result = state.lastResult;
+    if (!result || !state.selectedKey) { reading.innerHTML = ''; return; }
+    const dayGan = result.dayGan;
+    const key = state.selectedKey;
+    let data = null;
+    if (key.startsWith('y_')) {
+      const y = +key.slice(2);
+      const gan = window.BAZI.TIAN_GAN[((y - 4) % 10 + 10) % 10];
+      const zhi = window.BAZI.DI_ZHI[((y - 4) % 12 + 12) % 12];
+      const item = {
+        year: y, gan, zhi, gz: gan + zhi,
+        shiShen: window.BAZI.getShiShen(dayGan, gan),
+        nayin: window.BAZI.NA_YIN[(function(){
+          for (let i = 0; i < 60; i++) if (i % 10 === window.BAZI.TIAN_GAN.indexOf(gan) && i % 12 === window.BAZI.DI_ZHI.indexOf(zhi)) return i;
+          return 0;
+        })()]
+      };
+      data = window.BAZI.buildLiuYearReading(dayGan, item);
+    } else if (key.startsWith('m_')) {
+      const [, ys, idxs] = key.split('_');
+      const y = +ys, idx = +idxs;
+      const yearGan = window.BAZI.TIAN_GAN[((y - 4) % 10 + 10) % 10];
+      const startGanMap = { '甲':'丙','己':'丙','乙':'戊','庚':'戊','丙':'庚','辛':'庚','丁':'壬','壬':'壬','戊':'甲','癸':'甲' };
+      const startGan = startGanMap[yearGan];
+      const startIdx = window.BAZI.TIAN_GAN.indexOf(startGan);
+      const monthZhi = ['寅','卯','辰','巳','午','未','申','酉','戌','亥','子','丑'];
+      const monthName = ['正','二','三','四','五','六','七','八','九','十','冬','腊'][idx] + '月';
+      const gan = window.BAZI.TIAN_GAN[(startIdx + idx) % 10];
+      const zhi = monthZhi[idx];
+      const item = { monthName, gan, zhi, gz: gan + zhi, shiShen: window.BAZI.getShiShen(dayGan, gan) };
+      data = window.BAZI.buildLiuMonthReading(dayGan, item, y);
+    } else if (key.startsWith('d_')) {
+      const date = key.slice(2);
+      const [yy, mm, dd] = date.split('-').map(n => +n);
+      const liuri = window.BAZI.calcLiuRi(dayGan, yy, mm);
+      const item = liuri.find(x => x.day === dd);
+      if (item) data = window.BAZI.buildLiuDayReading(dayGan, item);
+    }
+    if (!data) { reading.innerHTML = ''; return; }
+
+    const tagsHtml = (data.tags || []).map(t => `<span class="r-tag">${escapeHTML(t)}</span>`).join('');
+    const sectionsHtml = (data.sections || []).map(s =>
+      `<div class="r-section"><h5>${escapeHTML(s.name)}</h5><p>${escapeHTML(s.text)}</p></div>`
+    ).join('');
+    const levelHtml = data.level ? `<span class="r-level r-level-${data.level === '吉' ? 'good' : (data.level === '小吉' ? 'mid' : (data.level === '需慎' ? 'bad' : 'normal'))}">${data.level}</span>` : '';
+    const scoreColor = data.score >= 80 ? '#2ecc71' : (data.score >= 65 ? '#e6c97a' : (data.score >= 55 ? '#e89150' : '#e74c3c'));
+    reading.innerHTML = `
+      <div class="r-head">
+        <div class="r-title">${escapeHTML(data.title)} ${levelHtml}</div>
+        <div class="r-score" style="color:${scoreColor}">运势 <b>${data.score}</b><span>/100</span></div>
+      </div>
+      <div class="r-tags">${tagsHtml}</div>
+      <div class="r-bar"><i style="width:${data.score}%;background:${scoreColor}"></i></div>
+      <div class="r-body">${sectionsHtml}</div>
+    `;
+  }
+
+  /* ----------- 人生四大领域 ----------- */
+  function renderLifeAspects(result) {
+    const box = $('#lifeAspects');
+    const aspects = window.BAZI.buildLifeAspects(result);
+    const order = ['love', 'career', 'health', 'wealth'];
+    const colors = {
+      love:   '#ec7063',
+      career: '#a855f7',
+      health: '#2ecc71',
+      wealth: '#e6c97a'
+    };
+    box.innerHTML = order.map(key => {
+      const a = aspects[key];
+      const c = colors[key];
+      return `
+        <div class="aspect-card" style="--c:${c}">
+          <div class="aspect-head">
+            <h4>${a.title}</h4>
+            <div class="aspect-score"><b style="color:${c}">${a.score}</b>/100</div>
+          </div>
+          <div class="aspect-bar"><i style="width:${a.score}%;background:${c}"></i></div>
+          <div class="aspect-body">
+            ${a.texts.map(t => `<p>· ${escapeHTML(t)}</p>`).join('')}
+          </div>
+        </div>
+      `;
+    }).join('');
   }
 
   /* ----------- 运势曲线 ----------- */
@@ -558,7 +821,8 @@
         $$('.liu-tab').forEach(b => b.classList.toggle('active', b === btn));
         const t = btn.dataset.liu;
         state.currentLiu = t;
-        if (state.lastResult) renderLiu(state.lastResult, t);
+        state.selectedKey = '';
+        if (state.lastResult) renderCalendar();
       });
     });
 
