@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>打包下载 · 天算AI 源码</title>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: radial-gradient(circle at 30% 20%, #2a2240, #14101f 70%);
+      color: #e8d9aa;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .panel {
+      width: 100%;
+      max-width: 520px;
+      background: rgba(30, 24, 48, 0.85);
+      border: 1px solid rgba(203, 184, 138, 0.25);
+      border-radius: 18px;
+      padding: 36px 28px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
+    }
+    .logo { font-size: 48px; text-align: center; margin-bottom: 8px; }
+    h1 { text-align: center; font-size: 22px; margin-bottom: 6px; color: #f0e3b8; }
+    .sub { text-align: center; font-size: 13px; color: #b3a37e; margin-bottom: 26px; }
+    .file-list {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 24px;
+    }
+    .file-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      font-size: 14px;
+      border-bottom: 1px dashed rgba(203, 184, 138, 0.12);
+    }
+    .file-item:last-child { border-bottom: none; }
+    .file-item .name { color: #e8d9aa; }
+    .file-item .status { font-size: 12px; color: #888; }
+    .file-item .status.ok { color: #2ecc71; }
+    .file-item .status.err { color: #e74c3c; }
+    .btn {
+      width: 100%;
+      padding: 15px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1428;
+      background: linear-gradient(135deg, #e6c97a, #d4af37);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 8px 20px rgba(212, 175, 55, 0.3);
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(212, 175, 55, 0.45); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .tip {
+      margin-top: 18px;
+      font-size: 12px;
+      color: #9a8b66;
+      text-align: center;
+      line-height: 1.6;
+    }
+    .back {
+      display: block;
+      text-align: center;
+      margin-top: 14px;
+      color: #cbb88a;
+      font-size: 13px;
+      text-decoration: none;
+    }
+    .back:hover { color: #f0e3b8; }
+  </style>
+</head>
+<body>
+  <div class="panel">
+    <div class="logo">📦</div>
+    <h1>天算AI · 源码打包下载</h1>
+    <p class="sub">将完整项目打包为 ZIP 压缩包，可在手机或电脑上保存</p>
+
+    <div class="file-list" id="fileList"></div>
+
+    <button class="btn" id="btnDownload">⬇️ 打包并下载 ZIP</button>
+
+    <p class="tip">
+      压缩包包含全部源码（HTML / CSS / JS）<br />
+      解压后用浏览器打开 <b>index.html</b> 即可运行
+    </p>
+    <a class="back" href="./index.html">← 返回主应用</a>
+  </div>
+
+  <script>
+    // 需要打包的文件清单
+    var FILES = ['index.html', 'style.css', 'app.js', 'bazi.js', 'regions.js', 'download.html'];
+
+    var listEl = document.getElementById('fileList');
+    var statusEls = {};
+    FILES.forEach(function (f) {
+      var row = document.createElement('div');
+      row.className = 'file-item';
+      row.innerHTML = '<span class="name">📄 ' + f + '</span><span class="status">等待</span>';
+      listEl.appendChild(row);
+      statusEls[f] = row.querySelector('.status');
+    });
+
+    var btn = document.getElementById('btnDownload');
+
+    btn.addEventListener('click', function () {
+      btn.disabled = true;
+      btn.textContent = '正在打包…';
+
+      var zip = new JSZip();
+      var folder = zip.folder('tianai-bazi');
+
+      var tasks = FILES.map(function (f) {
+        statusEls[f].textContent = '抓取中…';
+        statusEls[f].className = 'status';
+        return fetch('./' + f, { cache: 'no-store' })
+          .then(function (res) {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.text();
+          })
+          .then(function (text) {
+            folder.file(f, text);
+            statusEls[f].textContent = '✓ 已就绪';
+            statusEls[f].className = 'status ok';
+          })
+          .catch(function (err) {
+            statusEls[f].textContent = '✗ 失败';
+            statusEls[f].className = 'status err';
+            console.error('加载失败:', f, err);
+          });
+      });
+
+      Promise.all(tasks).then(function () {
+        return zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+      }).then(function (blob) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = 'tianai-bazi.zip';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+
+        btn.disabled = false;
+        btn.textContent = '⬇️ 重新打包下载';
+      }).catch(function (err) {
+        alert('打包失败：' + err.message);
+        btn.disabled = false;
+        btn.textContent = '⬇️ 打包并下载 ZIP';
+      });
+    });
+  </script>
+</body>
+</html>
